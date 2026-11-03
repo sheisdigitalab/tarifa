@@ -51,9 +51,12 @@ li:first-child{border-top:0}
 .step button{width:44px;height:100%;border:0;background:transparent;color:var(--fg);font:600 1.4rem/1 var(--body);cursor:pointer;border-radius:20px}
 .step output{min-width:2ch;text-align:center;font:700 1.25rem var(--mono);font-variant-numeric:tabular-nums}
 .step button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.total{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-top:18px;padding:14px 16px;background:var(--accent-soft);border:2px solid var(--accent);border-radius:10px}
+.total{display:grid;gap:10px;margin-top:18px;padding:14px 16px;background:var(--accent-soft);border:2px solid var(--accent);border-radius:10px}
+.trow{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.trow+.trow{border-top:1px solid var(--accent);padding-top:10px}
 .total span{font-weight:700;font-size:1.15rem}.total small{color:var(--muted);font-weight:500;font-size:.95rem;margin-left:6px}
-.total strong{font:700 1.8rem var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.total strong{font:700 1.4rem var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.total .trow+.trow strong{font-size:1.8rem}
 .favform{margin-top:22px;display:grid;gap:8px}
 .favform label{font-weight:700;font-size:1.1rem}
 .favrow{display:flex;gap:8px}
@@ -119,28 +122,36 @@ const nEl = document.getElementById("n"), searchBox = document.getElementById("s
 const key = r => r[0]+"|"+r[2];
 const listText = () => ROWS.filter(r=>qty(key(r))).map(r=>`${qty(key(r))} x ${r[2]}`).join(String.fromCharCode(10));
 const updateWa = () => { const a = document.getElementById("wa"); if(a) a.href = "https://wa.me/34637889942?text=" + encodeURIComponent(listText()); };
-const total = () => ROWS.reduce((a,r)=>a+qty(key(r))*r[3],0);
+const rate = r => isAgua(r) ? 0.10 : 0.21;
+const r2 = x => Math.round(x*100)/100;
+const base = r => r2(r[3]/(1+rate(r)));
+const totals = () => {
+  let b10=0, b21=0;
+  ROWS.forEach(r=>{ const n=qty(key(r)); if(n){ if(rate(r)===0.10) b10+=n*base(r); else b21+=n*base(r); } });
+  b10=r2(b10); b21=r2(b21);
+  return { sin:r2(b10+b21), con:r2(b10+b21+r2(b10*0.10)+r2(b21*0.21)) };
+};
 const eurT = n => n.toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
 const arm = (b,t1,t0) => { b.dataset.armed="1"; b.textContent=t1; setTimeout(()=>{ if(b.isConnected){ delete b.dataset.armed; b.textContent=t0; } },3000); };
 let favs=[];
 try{ const v=JSON.parse(localStorage.getItem("tarifa-favoritas")||"[]"); if(Array.isArray(v)) favs=v.filter(f=>f&&typeof f.name==="string"&&f.items&&typeof f.items==="object"); }catch(e){}
 const saveFavs = () => { try{ localStorage.setItem("tarifa-favoritas", JSON.stringify(favs)); }catch(e){} };
-const favInfo = f => { let p=0,t=0; ROWS.forEach(r=>{ const n=f.items[key(r)]||0; if(n){ p++; t+=n*r[3]; } }); return {p,t}; };
+const favInfo = f => { let p=0,t=0; ROWS.forEach(r=>{ const n=f.items[key(r)]||0; if(n){ p++; t+=n*base(r); } }); return {p,t}; };
 const favsHTML = () => {
   const form = Object.keys(lista).length ? `<div class="favform"><label for="fav-name">Guardar esta lista como favorita</label><div class="favrow"><input id="fav-name" type="text" maxlength="40" autocomplete="off" placeholder="Nombre, por ejemplo: Pedido semanal"><button class="btn primary" type="button" data-f="save">Guardar</button></div></div>` : "";
-  const cards = favs.map((f,i)=>{ const {p,t}=favInfo(f); return `<li class="fav"><div class="favtxt"><span class="name">${esc(f.name)}</span><span class="lbl2">${p} ${p===1?"producto":"productos"} · ${eurT(t)}</span></div><div class="favbtns"><button class="btn" type="button" data-f="load" data-i="${i}">Cargar</button><button class="btn" type="button" data-f="del" data-i="${i}">Borrar</button></div></li>`; }).join("");
+  const cards = favs.map((f,i)=>{ const {p,t}=favInfo(f); return `<li class="fav"><div class="favtxt"><span class="name">${esc(f.name)}</span><span class="lbl2">${p} ${p===1?"producto":"productos"} · ${eurT(r2(t))} sin IVA</span></div><div class="favbtns"><button class="btn" type="button" data-f="load" data-i="${i}">Cargar</button><button class="btn" type="button" data-f="del" data-i="${i}">Borrar</button></div></li>`; }).join("");
   return form + `<section class="group"><h2>Favoritas</h2><div id="fav-note" class="note" role="status" aria-live="polite"></div>` + (favs.length ? `<ul>${cards}</ul>` : `<p class="empty" style="margin-top:12px;text-align:left">Aún no tienes favoritas. Añade productos a tu lista y guárdala con un nombre.</p>`) + `</section>`;
 };
-const totalHTML = () => `<div class="total"><span>Total<small>sin IVA</small></span><strong id="total-v">${eurT(total())}</strong></div>`;
+const totalHTML = () => { const t=totals(); return `<div class="total"><div class="trow"><span>Total<small>sin IVA</small></span><strong id="total-sin">${eurT(t.sin)}</strong></div><div class="trow"><span>Total<small>con IVA</small></span><strong id="total-con">${eurT(t.con)}</strong></div></div>`; };
 const qty = k => lista[k]||0;
 const ctl = (k,name) => qty(k)
   ? `<span class="step"><button type="button" data-k="${esc(k)}" data-a="dec" aria-label="Quitar una unidad de ${esc(name)}">−</button><output aria-label="Unidades de ${esc(name)}">${qty(k)}</output><button type="button" data-k="${esc(k)}" data-a="inc" aria-label="Añadir una unidad de ${esc(name)}">+</button></span>`
   : `<button class="add" type="button" data-k="${esc(k)}" data-a="inc" aria-label="Añadir a la lista: ${esc(name)}">+ Añadir</button>`;
-const rowHTML = (r,terms,showFmt) => `<li><span class="info"><span class="name">${hl(r[1],terms)}</span>${showFmt?`<span class="lbl2">${esc(r[0])}</span>`:""}<span class="code"><span class="lbl">Cód.</span>${hl(r[2],terms)}</span></span><span class="side"><span class="price"><span class="sr">precio </span>${eur(r[3])}</span><span class="ctl" data-name="${esc(r[1])}">${ctl(key(r),r[1])}</span></span></li>`;
+const rowHTML = (r,terms,showFmt) => `<li><span class="info"><span class="name">${hl(r[1],terms)}</span>${showFmt?`<span class="lbl2">${esc(r[0])}</span>`:""}<span class="code"><span class="lbl">Cód.</span>${hl(r[2],terms)}</span></span><span class="side"><span class="price"><span class="sr">precio </span>${eur(base(r))}</span><span class="ctl" data-name="${esc(r[1])}">${ctl(key(r),r[1])}</span></span></li>`;
 const TOP = ["7496","7495","2758","82","3458"];
 const topRows = TOP.map(c=>ROWS.find(r=>r[2]===c)).filter(Boolean);
 function render(){
-  const terms = norm(q.value).split(/\s+/).filter(t=>t && !["de","del","la","el","los","las","y"].includes(t));
+  const terms = view==="lista" ? [] : norm(q.value).split(/\s+/).filter(t=>t && !["de","del","la","el","los","las","y"].includes(t));
   clear.hidden = !q.value;
   const keys = Object.keys(lista);
   const units = keys.reduce((a,k)=>a+lista[k],0);
@@ -179,7 +190,7 @@ out.addEventListener("click", e=>{
     out.querySelectorAll(".ctl").forEach(x=>{ const bt = x.querySelector("[data-k]"); if(bt && bt.dataset.k===k) x.innerHTML = ctl(k, x.dataset.name); });
     (box.querySelector('[data-a="'+a+'"]') || box.querySelector("button")).focus();
     nEl.textContent = Object.values(lista).reduce((x,y)=>x+y,0);
-    if(view==="lista"){ document.getElementById("total-v").textContent = eurT(total()); updateWa(); const u = Object.values(lista).reduce((x,y)=>x+y,0), p = Object.keys(lista).length; count.textContent = `${p} ${p===1?"producto":"productos"} · ${u} ${u===1?"unidad":"unidades"}`; }
+    if(view==="lista"){ { const t=totals(); document.getElementById("total-sin").textContent = eurT(t.sin); document.getElementById("total-con").textContent = eurT(t.con); } updateWa(); const u = Object.values(lista).reduce((x,y)=>x+y,0), p = Object.keys(lista).length; count.textContent = `${p} ${p===1?"producto":"productos"} · ${u} ${u===1?"unidad":"unidades"}`; }
     return;
   }
   const fv = e.target.closest("[data-f]");
