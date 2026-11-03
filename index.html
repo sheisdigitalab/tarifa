@@ -34,7 +34,7 @@ h1 span{display:block;color:var(--muted);font-weight:500;font-size:.9rem;margin-
 .group{margin-top:22px}
 .group h2{font-family:var(--display);font-weight:700;font-size:.85rem;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);margin:0 0 8px}
 ul{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
-li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:center;padding:12px 14px;border-top:1px solid var(--line)}
+li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:12px 14px;border-top:1px solid var(--line)}
 li:first-child{border-top:0}
 .info{min-width:0;display:grid;gap:4px}
 .name{font-weight:600;font-size:1.05rem;line-height:1.3;overflow-wrap:anywhere}
@@ -45,8 +45,12 @@ li:first-child{border-top:0}
 .tab,.btn{font:600 .95rem var(--body);padding:10px 12px;border:1.5px solid var(--field-line);border-radius:10px;background:transparent;color:var(--fg);cursor:pointer}
 .tab[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--bg)}
 .tab:focus-visible,.btn:focus-visible,.add:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.add{width:40px;height:40px;border-radius:50%;border:1.5px solid var(--accent);background:transparent;color:var(--accent);font:600 1.4rem/1 var(--body);cursor:pointer;display:grid;place-items:center;padding:0}
-.add[aria-pressed=true]{background:var(--accent);color:var(--bg)}
+.side{display:grid;gap:8px;justify-items:end}
+.add{height:40px;padding:0 14px;border-radius:20px;border:1.5px solid var(--accent);background:transparent;color:var(--accent);font:600 .95rem var(--body);cursor:pointer;white-space:nowrap}
+.step{display:flex;align-items:center;border:1.5px solid var(--accent);border-radius:20px;background:var(--accent-soft);height:40px}
+.step button{width:40px;height:100%;border:0;background:transparent;color:var(--fg);font:600 1.4rem/1 var(--body);cursor:pointer;border-radius:20px}
+.step output{min-width:2ch;text-align:center;font:700 1.1rem var(--mono);font-variant-numeric:tabular-nums}
+.step button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .actions{display:flex;gap:8px;margin-top:20px;flex-wrap:wrap}
 .btn[data-armed]{border-color:#e8a0a0;color:#f2c1c1}
 mark{background:var(--mark);color:inherit;border-radius:2px}
@@ -88,52 +92,63 @@ function hl(text, terms){
   for(let i=0;i<text.length;i++){ if(marks[i]&&!open){h+="<mark>";open=true} if(!marks[i]&&open){h+="</mark>";open=false} h+=esc(text[i]); }
   return h+(open?"</mark>":"");
 }
-let view="tarifa", lista=[];
-try{ lista = JSON.parse(localStorage.getItem("tarifa-lista")||"[]"); }catch(e){}
+let view="tarifa", lista={};
+try{
+  const v = JSON.parse(localStorage.getItem("tarifa-lista")||"{}");
+  if(Array.isArray(v)) v.forEach(k=>{ lista[k]=1; }); else if(v && typeof v==="object") lista=v;
+}catch(e){}
 const save = () => { try{ localStorage.setItem("tarifa-lista", JSON.stringify(lista)); }catch(e){} };
 const nEl = document.getElementById("n"), searchBox = document.getElementById("search"),
       tabT = document.getElementById("tab-tarifa"), tabL = document.getElementById("tab-lista");
 const key = r => r[0]+"|"+r[2];
+const qty = k => lista[k]||0;
+const ctl = (k,name) => qty(k)
+  ? `<span class="step"><button type="button" data-k="${esc(k)}" data-a="dec" aria-label="Quitar una unidad de ${esc(name)}">−</button><output aria-label="Unidades de ${esc(name)}">${qty(k)}</output><button type="button" data-k="${esc(k)}" data-a="inc" aria-label="Añadir una unidad de ${esc(name)}">+</button></span>`
+  : `<button class="add" type="button" data-k="${esc(k)}" data-a="inc" aria-label="Añadir a la lista: ${esc(name)}">+ Añadir</button>`;
 function render(){
   const terms = norm(q.value).split(/\s+/).filter(t=>t && !["de","del","la","el","los","las","y"].includes(t));
   clear.hidden = !q.value;
-  nEl.textContent = lista.length;
+  const keys = Object.keys(lista);
+  nEl.textContent = keys.length;
   const inLista = view==="lista";
   searchBox.hidden = inLista;
   tabT.setAttribute("aria-pressed", String(!inLista)); tabL.setAttribute("aria-pressed", String(inLista));
-  const hits = inLista ? ROWS.filter(r=>lista.includes(key(r)))
+  const hits = inLista ? ROWS.filter(r=>qty(key(r)))
                        : ROWS.filter((r,i)=>terms.every(t=>idx[i].includes(t)));
-  count.textContent = inLista ? (hits.length===1 ? "1 producto en tu lista" : `${hits.length} productos en tu lista`)
+  const units = keys.reduce((a,k)=>a+lista[k],0);
+  count.textContent = inLista ? `${hits.length} ${hits.length===1?"producto":"productos"} · ${units} ${units===1?"unidad":"unidades"}`
     : terms.length ? `${hits.length} de ${ROWS.length} productos` : `${ROWS.length} productos`;
-  if(inLista && !hits.length){ out.innerHTML = `<p class="empty">Tu lista está vacía. En la tarifa, pulsa + junto a un producto para añadirlo.</p>`; return; }
+  if(inLista && !hits.length){ out.innerHTML = `<p class="empty">Tu lista está vacía. En la tarifa, pulsa «+ Añadir» junto a un producto.</p>`; return; }
   if(!hits.length){ out.innerHTML = `<p class="empty">Nada coincide con «${esc(q.value)}». Prueba con menos letras.</p>`; return; }
   const groups = new Map();
   hits.forEach(r=>{ if(!groups.has(r[0])) groups.set(r[0],[]); groups.get(r[0]).push(r); });
   let h="";
   groups.forEach((items,fmt)=>{
     h += `<section class="group"><h2>${hl(fmt,terms)}</h2><ul>` +
-      items.map(r=>`<li><button class="add" type="button" data-k="${esc(key(r))}" aria-pressed="${lista.includes(key(r))}" aria-label="${lista.includes(key(r))?'Quitar de la lista':'Añadir a la lista'}: ${esc(r[1])}">${lista.includes(key(r))?'✓':'+'}</button><span class="info"><span class="name">${hl(r[1],terms)}</span><span class="code"><span class="lbl">Cód.</span>${hl(r[2],terms)}</span></span><span class="price"><span class="sr">precio </span>${eur(r[3])}</span></li>`).join("") +
+      items.map(r=>`<li><span class="info"><span class="name">${hl(r[1],terms)}</span><span class="code"><span class="lbl">Cód.</span>${hl(r[2],terms)}</span></span><span class="side"><span class="price"><span class="sr">precio </span>${eur(r[3])}</span><span class="ctl" data-name="${esc(r[1])}">${ctl(key(r),r[1])}</span></span></li>`).join("") +
       `</ul></section>`;
   });
   if(inLista) h += `<div class="actions"><button class="btn" id="copy" type="button">Copiar lista</button><button class="btn" id="empty" type="button">Vaciar lista</button></div>`;
   out.innerHTML = h;
 }
 out.addEventListener("click", e=>{
-  const b = e.target.closest(".add");
+  const b = e.target.closest("[data-a]");
   if(b){
-    const k = b.dataset.k, i = lista.indexOf(k);
-    if(i>-1) lista.splice(i,1); else lista.push(k);
+    const k = b.dataset.k, a = b.dataset.a;
+    const n = Math.max(0, qty(k) + (a==="inc" ? 1 : -1));
+    if(n) lista[k]=n; else delete lista[k];
     save();
-    if(view==="lista") return render();
-    const on = lista.includes(k);
-    b.setAttribute("aria-pressed", String(on)); b.textContent = on ? "✓" : "+";
-    b.setAttribute("aria-label", (on?"Quitar de la lista: ":"Añadir a la lista: ")+b.getAttribute("aria-label").split(": ").slice(1).join(": "));
-    nEl.textContent = lista.length;
+    if(view==="lista" && !n) return render();
+    const box = b.closest(".ctl");
+    box.innerHTML = ctl(k, box.dataset.name);
+    (box.querySelector('[data-a="'+a+'"]') || box.querySelector("button")).focus();
+    nEl.textContent = Object.keys(lista).length;
+    if(view==="lista"){ const u = Object.values(lista).reduce((x,y)=>x+y,0), p = Object.keys(lista).length; count.textContent = `${p} ${p===1?"producto":"productos"} · ${u} ${u===1?"unidad":"unidades"}`; }
     return;
   }
   const c = e.target.closest("#copy");
   if(c){
-    const txt = ROWS.filter(r=>lista.includes(key(r))).map(r=>`${r[1]} · ${r[0]} · cód. ${r[2]} · ${eur(r[3])}`).join("\n");
+    const txt = ROWS.filter(r=>qty(key(r))).map(r=>`${qty(key(r))} x ${r[2]}`).join(String.fromCharCode(10));
     (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(()=>{c.textContent="Copiado ✓"}, ()=>{c.textContent="No se pudo copiar"});
     setTimeout(()=>{c.textContent="Copiar lista"},2000);
     return;
@@ -141,7 +156,7 @@ out.addEventListener("click", e=>{
   const m = e.target.closest("#empty");
   if(m){
     if(!m.dataset.armed){ m.dataset.armed="1"; m.textContent="Pulsa otra vez para vaciar"; setTimeout(()=>{ if(m.isConnected){ delete m.dataset.armed; m.textContent="Vaciar lista"; } },3000); return; }
-    lista=[]; save(); render();
+    lista={}; save(); render();
   }
 });
 tabT.addEventListener("click", ()=>{ view="tarifa"; render(); window.scrollTo(0,0); });
