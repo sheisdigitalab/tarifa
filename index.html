@@ -122,9 +122,9 @@ const nEl = document.getElementById("n"), searchBox = document.getElementById("s
 const key = r => r[0]+"|"+r[2];
 const listText = () => ROWS.filter(r=>qty(key(r))).map(r=>`${qty(key(r))} x ${r[2]}`).join(String.fromCharCode(10));
 const updateWa = () => { const a = document.getElementById("wa"); if(a) a.href = "https://wa.me/34637889942?text=" + encodeURIComponent(listText()); };
-const rate = r => isAgua(r) ? 0.10 : 0.21;
+const rate = r => (isAgua(r) || /^Appletiser/i.test(r[1])) ? 0.10 : 0.21;
 const r2 = x => Math.round(x*100)/100;
-const base = r => r2(r[3]/(1+rate(r)));
+const base = r => r[3];
 const totals = () => {
   let b10=0, b21=0;
   ROWS.forEach(r=>{ const n=qty(key(r)); if(n){ if(rate(r)===0.10) b10+=n*base(r); else b21+=n*base(r); } });
