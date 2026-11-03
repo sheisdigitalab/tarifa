@@ -136,7 +136,7 @@ const ctl = (k,name) => qty(k)
   ? `<span class="step"><button type="button" data-k="${esc(k)}" data-a="dec" aria-label="Quitar una unidad de ${esc(name)}">−</button><output aria-label="Unidades de ${esc(name)}">${qty(k)}</output><button type="button" data-k="${esc(k)}" data-a="inc" aria-label="Añadir una unidad de ${esc(name)}">+</button></span>`
   : `<button class="add" type="button" data-k="${esc(k)}" data-a="inc" aria-label="Añadir a la lista: ${esc(name)}">+ Añadir</button>`;
 const rowHTML = (r,terms,showFmt) => `<li><span class="info"><span class="name">${hl(r[1],terms)}</span>${showFmt?`<span class="lbl2">${esc(r[0])}</span>`:""}<span class="code"><span class="lbl">Cód.</span>${hl(r[2],terms)}</span></span><span class="side"><span class="price"><span class="sr">precio </span>${eur(r[3])}</span><span class="ctl" data-name="${esc(r[1])}">${ctl(key(r),r[1])}</span></span></li>`;
-const TOP = ["2621","82","3458","7496","7495"];
+const TOP = ["7496","7495","2621","82","3458"];
 const topRows = TOP.map(c=>ROWS.find(r=>r[2]===c)).filter(Boolean);
 function render(){
   const terms = norm(q.value).split(/\s+/).filter(t=>t && !["de","del","la","el","los","las","y"].includes(t));
