@@ -135,6 +135,9 @@ const qty = k => lista[k]||0;
 const ctl = (k,name) => qty(k)
   ? `<span class="step"><button type="button" data-k="${esc(k)}" data-a="dec" aria-label="Quitar una unidad de ${esc(name)}">−</button><output aria-label="Unidades de ${esc(name)}">${qty(k)}</output><button type="button" data-k="${esc(k)}" data-a="inc" aria-label="Añadir una unidad de ${esc(name)}">+</button></span>`
   : `<button class="add" type="button" data-k="${esc(k)}" data-a="inc" aria-label="Añadir a la lista: ${esc(name)}">+ Añadir</button>`;
+const rowHTML = (r,terms,showFmt) => `<li><span class="info"><span class="name">${hl(r[1],terms)}</span>${showFmt?`<span class="lbl2">${esc(r[0])}</span>`:""}<span class="code"><span class="lbl">Cód.</span>${hl(r[2],terms)}</span></span><span class="side"><span class="price"><span class="sr">precio </span>${eur(r[3])}</span><span class="ctl" data-name="${esc(r[1])}">${ctl(key(r),r[1])}</span></span></li>`;
+const TOP = ["2621","82","3458","7496","7495"];
+const topRows = TOP.map(c=>ROWS.find(r=>r[2]===c)).filter(Boolean);
 function render(){
   const terms = norm(q.value).split(/\s+/).filter(t=>t && !["de","del","la","el","los","las","y"].includes(t));
   clear.hidden = !q.value;
@@ -155,9 +158,10 @@ function render(){
   let h="";
   groups.forEach((items,fmt)=>{
     h += `<section class="group"><h2>${hl(fmt,terms)}</h2><ul>` +
-      items.map(r=>`<li><span class="info"><span class="name">${hl(r[1],terms)}</span><span class="code"><span class="lbl">Cód.</span>${hl(r[2],terms)}</span></span><span class="side"><span class="price"><span class="sr">precio </span>${eur(r[3])}</span><span class="ctl" data-name="${esc(r[1])}">${ctl(key(r),r[1])}</span></span></li>`).join("") +
+      items.map(r=>rowHTML(r,terms)).join("") +
       `</ul></section>`;
   });
+  if(!inLista && !terms.length) h = `<section class="group"><h2>Más pedidos</h2><ul>${topRows.map(r=>rowHTML(r,terms,true)).join("")}</ul></section>` + h;
   if(inLista) h += `<div class="actions"><a class="btn wa" id="wa" href="https://wa.me/34637889942" target="_blank" rel="noopener">Enviar por WhatsApp</a><button class="btn" id="copy" type="button">Copiar lista</button><button class="btn" id="empty" type="button">Vaciar lista</button></div>`;
   out.innerHTML = (inLista ? totalHTML() : "") + h + (inLista ? favsHTML() : "");
   updateWa();
@@ -171,7 +175,7 @@ out.addEventListener("click", e=>{
     save();
     if(view==="lista" && !n) return render();
     const box = b.closest(".ctl");
-    box.innerHTML = ctl(k, box.dataset.name);
+    out.querySelectorAll(".ctl").forEach(x=>{ const bt = x.querySelector("[data-k]"); if(bt && bt.dataset.k===k) x.innerHTML = ctl(k, x.dataset.name); });
     (box.querySelector('[data-a="'+a+'"]') || box.querySelector("button")).focus();
     nEl.textContent = Object.keys(lista).length;
     if(view==="lista"){ document.getElementById("total-v").textContent = eurT(total()); updateWa(); const u = Object.values(lista).reduce((x,y)=>x+y,0), p = Object.keys(lista).length; count.textContent = `${p} ${p===1?"producto":"productos"} · ${u} ${u===1?"unidad":"unidades"}`; }
