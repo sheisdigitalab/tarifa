@@ -33,11 +33,19 @@ h1 span{color:var(--muted);font-weight:500;font-size:.9rem;margin-left:8px;lette
 .group{margin-top:22px}
 .group h2{font-family:var(--display);font-weight:700;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);margin:0 0 6px}
 ul{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
-li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:14px;align-items:baseline;padding:10px 14px;border-top:1px solid var(--line)}
+li{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:10px 12px;align-items:center;padding:10px 14px;border-top:1px solid var(--line)}
 li:first-child{border-top:0}
 .name{min-width:0}
 .code{font-family:var(--mono);font-size:1.15rem;font-weight:700;color:var(--fg);font-variant-numeric:tabular-nums}
 .price{font-family:var(--mono);font-weight:500;font-variant-numeric:tabular-nums;min-width:5.5ch;text-align:right}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tab,.btn{font:600 .95rem var(--body);padding:10px 12px;border:1.5px solid var(--field-line);border-radius:10px;background:transparent;color:var(--fg);cursor:pointer}
+.tab[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.tab:focus-visible,.btn:focus-visible,.add:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.add{width:40px;height:40px;border-radius:50%;border:1.5px solid var(--accent);background:transparent;color:var(--accent);font:600 1.4rem/1 var(--body);cursor:pointer;display:grid;place-items:center;padding:0}
+.add[aria-pressed=true]{background:var(--accent);color:var(--bg)}
+.actions{display:flex;gap:8px;margin-top:20px;flex-wrap:wrap}
+.btn[data-armed]{border-color:#e8a0a0;color:#f2c1c1}
 mark{background:var(--mark);color:inherit;border-radius:2px}
 .empty{margin-top:40px;text-align:center;color:var(--muted)}
 </style>
@@ -46,7 +54,11 @@ mark{background:var(--mark);color:inherit;border-radius:2px}
 <div class="wrap">
   <header>
     <h1>Tarifa de bebidas<span>precios con IVA · rev. 03/24</span></h1>
-    <div class="search">
+    <div class="tabs" role="group" aria-label="Vista">
+      <button class="tab" id="tab-tarifa" type="button" aria-pressed="true">Tarifa</button>
+      <button class="tab" id="tab-lista" type="button" aria-pressed="false">Mi lista (<span id="n">0</span>)</button>
+    </div>
+    <div class="search" id="search">
       <input id="q" type="search" autocomplete="off" placeholder="Busca por nombre, código o formato… (ej. fanta, 2548, latas 33)" aria-label="Buscar en la tarifa">
       <button id="clear" type="button" aria-label="Borrar búsqueda" hidden>×</button>
     </div>
@@ -71,22 +83,64 @@ function hl(text, terms){
   for(let i=0;i<text.length;i++){ if(marks[i]&&!open){h+="<mark>";open=true} if(!marks[i]&&open){h+="</mark>";open=false} h+=esc(text[i]); }
   return h+(open?"</mark>":"");
 }
+let view="tarifa", lista=[];
+try{ lista = JSON.parse(localStorage.getItem("tarifa-lista")||"[]"); }catch(e){}
+const save = () => { try{ localStorage.setItem("tarifa-lista", JSON.stringify(lista)); }catch(e){} };
+const nEl = document.getElementById("n"), searchBox = document.getElementById("search"),
+      tabT = document.getElementById("tab-tarifa"), tabL = document.getElementById("tab-lista");
+const key = r => r[0]+"|"+r[2];
 function render(){
   const terms = norm(q.value).split(/\s+/).filter(t=>t && !["de","del","la","el","los","las","y"].includes(t));
   clear.hidden = !q.value;
-  const hits = ROWS.filter((r,i)=>terms.every(t=>idx[i].includes(t)));
-  count.textContent = terms.length ? `${hits.length} de ${ROWS.length} productos` : `${ROWS.length} productos`;
+  nEl.textContent = lista.length;
+  const inLista = view==="lista";
+  searchBox.hidden = inLista;
+  tabT.setAttribute("aria-pressed", String(!inLista)); tabL.setAttribute("aria-pressed", String(inLista));
+  const hits = inLista ? ROWS.filter(r=>lista.includes(key(r)))
+                       : ROWS.filter((r,i)=>terms.every(t=>idx[i].includes(t)));
+  count.textContent = inLista ? (hits.length===1 ? "1 producto en tu lista" : `${hits.length} productos en tu lista`)
+    : terms.length ? `${hits.length} de ${ROWS.length} productos` : `${ROWS.length} productos`;
+  if(inLista && !hits.length){ out.innerHTML = `<p class="empty">Tu lista está vacía. En la tarifa, pulsa + junto a un producto para añadirlo.</p>`; return; }
   if(!hits.length){ out.innerHTML = `<p class="empty">Nada coincide con «${esc(q.value)}». Prueba con menos letras.</p>`; return; }
   const groups = new Map();
   hits.forEach(r=>{ if(!groups.has(r[0])) groups.set(r[0],[]); groups.get(r[0]).push(r); });
   let h="";
   groups.forEach((items,fmt)=>{
     h += `<section class="group"><h2>${hl(fmt,terms)}</h2><ul>` +
-      items.map(r=>`<li><span class="name">${hl(r[1],terms)}</span><span class="code"><span class="sr">código </span>${hl(r[2],terms)}</span><span class="price"><span class="sr">precio </span>${eur(r[3])}</span></li>`).join("") +
+      items.map(r=>`<li><button class="add" type="button" data-k="${esc(key(r))}" aria-pressed="${lista.includes(key(r))}" aria-label="${lista.includes(key(r))?'Quitar de la lista':'Añadir a la lista'}: ${esc(r[1])}">${lista.includes(key(r))?'✓':'+'}</button><span class="name">${hl(r[1],terms)}</span><span class="code"><span class="sr">código </span>${hl(r[2],terms)}</span><span class="price"><span class="sr">precio </span>${eur(r[3])}</span></li>`).join("") +
       `</ul></section>`;
   });
+  if(inLista) h += `<div class="actions"><button class="btn" id="copy" type="button">Copiar lista</button><button class="btn" id="empty" type="button">Vaciar lista</button></div>`;
   out.innerHTML = h;
 }
+out.addEventListener("click", e=>{
+  const b = e.target.closest(".add");
+  if(b){
+    const k = b.dataset.k, i = lista.indexOf(k);
+    if(i>-1) lista.splice(i,1); else lista.push(k);
+    save();
+    if(view==="lista") return render();
+    const on = lista.includes(k);
+    b.setAttribute("aria-pressed", String(on)); b.textContent = on ? "✓" : "+";
+    b.setAttribute("aria-label", (on?"Quitar de la lista: ":"Añadir a la lista: ")+b.getAttribute("aria-label").split(": ").slice(1).join(": "));
+    nEl.textContent = lista.length;
+    return;
+  }
+  const c = e.target.closest("#copy");
+  if(c){
+    const txt = ROWS.filter(r=>lista.includes(key(r))).map(r=>`${r[1]} · ${r[0]} · cód. ${r[2]} · ${eur(r[3])}`).join("\n");
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(()=>{c.textContent="Copiado ✓"}, ()=>{c.textContent="No se pudo copiar"});
+    setTimeout(()=>{c.textContent="Copiar lista"},2000);
+    return;
+  }
+  const m = e.target.closest("#empty");
+  if(m){
+    if(!m.dataset.armed){ m.dataset.armed="1"; m.textContent="Pulsa otra vez para vaciar"; setTimeout(()=>{ if(m.isConnected){ delete m.dataset.armed; m.textContent="Vaciar lista"; } },3000); return; }
+    lista=[]; save(); render();
+  }
+});
+tabT.addEventListener("click", ()=>{ view="tarifa"; render(); window.scrollTo(0,0); });
+tabL.addEventListener("click", ()=>{ view="lista"; render(); window.scrollTo(0,0); });
 q.addEventListener("input", render);
 clear.addEventListener("click", ()=>{ q.value=""; render(); q.focus(); });
 render();
