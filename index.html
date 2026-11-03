@@ -74,7 +74,7 @@ mark{background:var(--mark);color:inherit;border-radius:2px}
 <body style="margin:0">
 <div class="wrap">
   <header>
-    <h1>Tarifa de bebidas<span>precios con IVA · rev. 03/24</span></h1>
+    <h1>Tarifa de bebidas<span>precios sin IVA · rev. 03/24</span></h1>
   </header>
   <div class="bar">
     <div class="tabs" role="group" aria-label="Vista">
@@ -128,7 +128,7 @@ const favsHTML = () => {
   const cards = favs.map((f,i)=>{ const {p,t}=favInfo(f); return `<li class="fav"><div class="favtxt"><span class="name">${esc(f.name)}</span><span class="lbl2">${p} ${p===1?"producto":"productos"} · ${eurT(t)}</span></div><div class="favbtns"><button class="btn" type="button" data-f="load" data-i="${i}">Cargar</button><button class="btn" type="button" data-f="del" data-i="${i}">Borrar</button></div></li>`; }).join("");
   return form + `<section class="group"><h2>Favoritas</h2><div id="fav-note" class="note" role="status" aria-live="polite"></div>` + (favs.length ? `<ul>${cards}</ul>` : `<p class="empty" style="margin-top:12px;text-align:left">Aún no tienes favoritas. Añade productos a tu lista y guárdala con un nombre.</p>`) + `</section>`;
 };
-const totalHTML = () => `<div class="total"><span>Total<small>IVA incluido</small></span><strong id="total-v">${eurT(total())}</strong></div>`;
+const totalHTML = () => `<div class="total"><span>Total<small>sin IVA</small></span><strong id="total-v">${eurT(total())}</strong></div>`;
 const qty = k => lista[k]||0;
 const ctl = (k,name) => qty(k)
   ? `<span class="step"><button type="button" data-k="${esc(k)}" data-a="dec" aria-label="Quitar una unidad de ${esc(name)}">−</button><output aria-label="Unidades de ${esc(name)}">${qty(k)}</output><button type="button" data-k="${esc(k)}" data-a="inc" aria-label="Añadir una unidad de ${esc(name)}">+</button></span>`
