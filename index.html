@@ -77,7 +77,7 @@ mark{background:var(--mark);color:inherit;border-radius:2px}
 <body style="margin:0">
 <div class="wrap">
   <header>
-    <h1>Tarifa de bebidas<span>precios sin IVA · rev. 03/24</span></h1>
+    <h1>Tarifa de bebidas<span>precios con IVA · rev. 03/24</span></h1>
   </header>
   <div class="bar">
     <div class="tabs" role="group" aria-label="Vista">
@@ -129,7 +129,7 @@ const totals = () => {
   let b10=0, b21=0;
   ROWS.forEach(r=>{ const n=qty(key(r)); if(n){ if(rate(r)===0.10) b10+=n*base(r); else b21+=n*base(r); } });
   b10=r2(b10); b21=r2(b21);
-  return { sin:r2(b10+b21), con:r2(b10+b21+r2(b10*0.10)+r2(b21*0.21)) };
+  return { sin:r2(r2(b10/1.10)+r2(b21/1.21)), con:r2(b10+b21) };
 };
 const eurT = n => n.toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
 const arm = (b,t1,t0) => { b.dataset.armed="1"; b.textContent=t1; setTimeout(()=>{ if(b.isConnected){ delete b.dataset.armed; b.textContent=t0; } },3000); };
@@ -139,7 +139,7 @@ const saveFavs = () => { try{ localStorage.setItem("tarifa-favoritas", JSON.stri
 const favInfo = f => { let p=0,t=0; ROWS.forEach(r=>{ const n=f.items[key(r)]||0; if(n){ p++; t+=n*base(r); } }); return {p,t}; };
 const favsHTML = () => {
   const form = Object.keys(lista).length ? `<div class="favform"><label for="fav-name">Guardar esta lista como favorita</label><div class="favrow"><input id="fav-name" type="text" maxlength="40" autocomplete="off" placeholder="Nombre, por ejemplo: Pedido semanal"><button class="btn primary" type="button" data-f="save">Guardar</button></div></div>` : "";
-  const cards = favs.map((f,i)=>{ const {p,t}=favInfo(f); return `<li class="fav"><div class="favtxt"><span class="name">${esc(f.name)}</span><span class="lbl2">${p} ${p===1?"producto":"productos"} · ${eurT(r2(t))} sin IVA</span></div><div class="favbtns"><button class="btn" type="button" data-f="load" data-i="${i}">Cargar</button><button class="btn" type="button" data-f="del" data-i="${i}">Borrar</button></div></li>`; }).join("");
+  const cards = favs.map((f,i)=>{ const {p,t}=favInfo(f); return `<li class="fav"><div class="favtxt"><span class="name">${esc(f.name)}</span><span class="lbl2">${p} ${p===1?"producto":"productos"} · ${eurT(r2(t))} con IVA</span></div><div class="favbtns"><button class="btn" type="button" data-f="load" data-i="${i}">Cargar</button><button class="btn" type="button" data-f="del" data-i="${i}">Borrar</button></div></li>`; }).join("");
   return form + `<section class="group"><h2>Favoritas</h2><div id="fav-note" class="note" role="status" aria-live="polite"></div>` + (favs.length ? `<ul>${cards}</ul>` : `<p class="empty" style="margin-top:12px;text-align:left">Aún no tienes favoritas. Añade productos a tu lista y guárdala con un nombre.</p>`) + `</section>`;
 };
 const totalHTML = () => { const t=totals(); return `<div class="total"><div class="trow"><span>Total<small>sin IVA</small></span><strong id="total-sin">${eurT(t.sin)}</strong></div><div class="trow"><span>Total<small>con IVA</small></span><strong id="total-con">${eurT(t.con)}</strong></div></div>`; };
