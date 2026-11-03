@@ -142,13 +142,13 @@ function render(){
   const terms = norm(q.value).split(/\s+/).filter(t=>t && !["de","del","la","el","los","las","y"].includes(t));
   clear.hidden = !q.value;
   const keys = Object.keys(lista);
-  nEl.textContent = keys.length;
+  const units = keys.reduce((a,k)=>a+lista[k],0);
+  nEl.textContent = units;
   const inLista = view==="lista";
   searchBox.hidden = inLista;
   tabT.setAttribute("aria-pressed", String(!inLista)); tabL.setAttribute("aria-pressed", String(inLista));
   const hits = inLista ? ROWS.filter(r=>qty(key(r)))
                        : ROWS.filter((r,i)=>terms.every(t=>idx[i].includes(t)));
-  const units = keys.reduce((a,k)=>a+lista[k],0);
   count.textContent = inLista ? `${hits.length} ${hits.length===1?"producto":"productos"} · ${units} ${units===1?"unidad":"unidades"}`
     : terms.length ? `${hits.length} de ${ROWS.length} productos` : `${ROWS.length} productos`;
   if(inLista && !hits.length){ out.innerHTML = `<p class="empty">Tu lista está vacía. En Bebidas, pulsa «+ Añadir» junto a un producto, o carga una favorita.</p>` + favsHTML(); return; }
@@ -177,7 +177,7 @@ out.addEventListener("click", e=>{
     const box = b.closest(".ctl");
     out.querySelectorAll(".ctl").forEach(x=>{ const bt = x.querySelector("[data-k]"); if(bt && bt.dataset.k===k) x.innerHTML = ctl(k, x.dataset.name); });
     (box.querySelector('[data-a="'+a+'"]') || box.querySelector("button")).focus();
-    nEl.textContent = Object.keys(lista).length;
+    nEl.textContent = Object.values(lista).reduce((x,y)=>x+y,0);
     if(view==="lista"){ document.getElementById("total-v").textContent = eurT(total()); updateWa(); const u = Object.values(lista).reduce((x,y)=>x+y,0), p = Object.keys(lista).length; count.textContent = `${p} ${p===1?"producto":"productos"} · ${u} ${u===1?"unidad":"unidades"}`; }
     return;
   }
