@@ -59,7 +59,7 @@ li:first-child{border-top:0}
 .favrow{display:flex;gap:8px}
 .favrow input{flex:1;min-width:0;font:500 1.1rem var(--body);padding:12px 14px;border:2px solid var(--field-line);border-radius:10px;background:var(--surface);color:var(--fg);outline:none}
 .favrow input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-.btn.wa{background:#1a7f43;border-color:#1a7f43;color:#fff;flex:1 1 100%}
+.btn.wa{background:#1a7f43;border-color:#1a7f43;color:#fff;flex:1 1 100%;display:block;text-align:center;text-decoration:none;box-sizing:border-box}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 li.fav{grid-template-columns:minmax(0,1fr);gap:10px}
 .favtxt{display:grid;gap:2px}.lbl2{color:var(--muted);font-size:1rem}
@@ -116,6 +116,7 @@ const nEl = document.getElementById("n"), searchBox = document.getElementById("s
       tabT = document.getElementById("tab-tarifa"), tabL = document.getElementById("tab-lista");
 const key = r => r[0]+"|"+r[2];
 const listText = () => ROWS.filter(r=>qty(key(r))).map(r=>`${qty(key(r))} x ${r[2]}`).join(String.fromCharCode(10));
+const updateWa = () => { const a = document.getElementById("wa"); if(a) a.href = "https://wa.me/34637889942?text=" + encodeURIComponent(listText()); };
 const total = () => ROWS.reduce((a,r)=>a+qty(key(r))*r[3],0);
 const eurT = n => n.toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
 const arm = (b,t1,t0) => { b.dataset.armed="1"; b.textContent=t1; setTimeout(()=>{ if(b.isConnected){ delete b.dataset.armed; b.textContent=t0; } },3000); };
@@ -156,8 +157,9 @@ function render(){
       items.map(r=>`<li><span class="info"><span class="name">${hl(r[1],terms)}</span><span class="code"><span class="lbl">Cód.</span>${hl(r[2],terms)}</span></span><span class="side"><span class="price"><span class="sr">precio </span>${eur(r[3])}</span><span class="ctl" data-name="${esc(r[1])}">${ctl(key(r),r[1])}</span></span></li>`).join("") +
       `</ul></section>`;
   });
-  if(inLista) h += `<div class="actions"><button class="btn wa" id="wa" type="button">Enviar por WhatsApp</button><button class="btn" id="copy" type="button">Copiar lista</button><button class="btn" id="empty" type="button">Vaciar lista</button></div>`;
+  if(inLista) h += `<div class="actions"><a class="btn wa" id="wa" href="https://wa.me/34637889942" target="_blank" rel="noopener">Enviar por WhatsApp</a><button class="btn" id="copy" type="button">Copiar lista</button><button class="btn" id="empty" type="button">Vaciar lista</button></div>`;
   out.innerHTML = (inLista ? totalHTML() : "") + h + (inLista ? favsHTML() : "");
+  updateWa();
 }
 out.addEventListener("click", e=>{
   const b = e.target.closest("[data-a]");
@@ -171,7 +173,7 @@ out.addEventListener("click", e=>{
     box.innerHTML = ctl(k, box.dataset.name);
     (box.querySelector('[data-a="'+a+'"]') || box.querySelector("button")).focus();
     nEl.textContent = Object.keys(lista).length;
-    if(view==="lista"){ document.getElementById("total-v").textContent = eurT(total()); const u = Object.values(lista).reduce((x,y)=>x+y,0), p = Object.keys(lista).length; count.textContent = `${p} ${p===1?"producto":"productos"} · ${u} ${u===1?"unidad":"unidades"}`; }
+    if(view==="lista"){ document.getElementById("total-v").textContent = eurT(total()); updateWa(); const u = Object.values(lista).reduce((x,y)=>x+y,0), p = Object.keys(lista).length; count.textContent = `${p} ${p===1?"producto":"productos"} · ${u} ${u===1?"unidad":"unidades"}`; }
     return;
   }
   const fv = e.target.closest("[data-f]");
@@ -195,11 +197,6 @@ out.addEventListener("click", e=>{
       lista = {}; Object.keys(favs[i].items).forEach(k=>{ if(ok.has(k) && favs[i].items[k]>0) lista[k]=favs[i].items[k]; });
       save(); render(); window.scrollTo(0,0); return;
     }
-  }
-  if(e.target.closest("#wa")){
-    const url = "https://wa.me/34637889942?text=" + encodeURIComponent(listText());
-    if(!window.open(url, "_blank", "noopener")) location.href = url;
-    return;
   }
   const c = e.target.closest("#copy");
   if(c){
