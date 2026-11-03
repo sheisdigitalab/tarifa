@@ -71,7 +71,7 @@ function hl(text, terms){
   return h+(open?"</mark>":"");
 }
 function render(){
-  const terms = norm(q.value).split(/\s+/).filter(Boolean);
+  const terms = norm(q.value).split(/\s+/).filter(t=>t && !["de","del","la","el","los","las","y"].includes(t));
   clear.hidden = !q.value;
   const hits = ROWS.filter((r,i)=>terms.every(t=>idx[i].includes(t)));
   count.textContent = terms.length ? `${hits.length} de ${ROWS.length} productos` : `${ROWS.length} productos`;
