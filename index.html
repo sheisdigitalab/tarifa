@@ -54,6 +54,17 @@ li:first-child{border-top:0}
 .total{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-top:18px;padding:14px 16px;background:var(--accent-soft);border:2px solid var(--accent);border-radius:10px}
 .total span{font-weight:700;font-size:1.15rem}.total small{color:var(--muted);font-weight:500;font-size:.95rem;margin-left:6px}
 .total strong{font:700 1.8rem var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.favform{margin-top:22px;display:grid;gap:8px}
+.favform label{font-weight:700;font-size:1.1rem}
+.favrow{display:flex;gap:8px}
+.favrow input{flex:1;min-width:0;font:500 1.1rem var(--body);padding:12px 14px;border:2px solid var(--field-line);border-radius:10px;background:var(--surface);color:var(--fg);outline:none}
+.favrow input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.btn.wa{background:#1a7f43;border-color:#1a7f43;color:#fff;flex:1 1 100%}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+li.fav{grid-template-columns:minmax(0,1fr);gap:10px}
+.favtxt{display:grid;gap:2px}.lbl2{color:var(--muted);font-size:1rem}
+.favbtns{display:flex;gap:8px;flex-wrap:wrap}
+.note{margin:0 0 8px;font-weight:700;color:var(--accent)}.note:empty{display:none}
 .actions{display:flex;gap:8px;margin-top:20px;flex-wrap:wrap}
 .btn[data-armed]{border-color:#a11d1d;color:#a11d1d}
 mark{background:var(--mark);color:inherit;border-radius:2px}
@@ -104,8 +115,19 @@ const save = () => { try{ localStorage.setItem("tarifa-lista", JSON.stringify(li
 const nEl = document.getElementById("n"), searchBox = document.getElementById("search"),
       tabT = document.getElementById("tab-tarifa"), tabL = document.getElementById("tab-lista");
 const key = r => r[0]+"|"+r[2];
+const listText = () => ROWS.filter(r=>qty(key(r))).map(r=>`${qty(key(r))} x ${r[2]}`).join(String.fromCharCode(10));
 const total = () => ROWS.reduce((a,r)=>a+qty(key(r))*r[3],0);
 const eurT = n => n.toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
+const arm = (b,t1,t0) => { b.dataset.armed="1"; b.textContent=t1; setTimeout(()=>{ if(b.isConnected){ delete b.dataset.armed; b.textContent=t0; } },3000); };
+let favs=[];
+try{ const v=JSON.parse(localStorage.getItem("tarifa-favoritas")||"[]"); if(Array.isArray(v)) favs=v.filter(f=>f&&typeof f.name==="string"&&f.items&&typeof f.items==="object"); }catch(e){}
+const saveFavs = () => { try{ localStorage.setItem("tarifa-favoritas", JSON.stringify(favs)); }catch(e){} };
+const favInfo = f => { let p=0,t=0; ROWS.forEach(r=>{ const n=f.items[key(r)]||0; if(n){ p++; t+=n*r[3]; } }); return {p,t}; };
+const favsHTML = () => {
+  const form = Object.keys(lista).length ? `<div class="favform"><label for="fav-name">Guardar esta lista como favorita</label><div class="favrow"><input id="fav-name" type="text" maxlength="40" autocomplete="off" placeholder="Nombre, por ejemplo: Pedido semanal"><button class="btn primary" type="button" data-f="save">Guardar</button></div></div>` : "";
+  const cards = favs.map((f,i)=>{ const {p,t}=favInfo(f); return `<li class="fav"><div class="favtxt"><span class="name">${esc(f.name)}</span><span class="lbl2">${p} ${p===1?"producto":"productos"} · ${eurT(t)}</span></div><div class="favbtns"><button class="btn" type="button" data-f="load" data-i="${i}">Cargar</button><button class="btn" type="button" data-f="del" data-i="${i}">Borrar</button></div></li>`; }).join("");
+  return form + `<section class="group"><h2>Favoritas</h2><div id="fav-note" class="note" role="status" aria-live="polite"></div>` + (favs.length ? `<ul>${cards}</ul>` : `<p class="empty" style="margin-top:12px;text-align:left">Aún no tienes favoritas. Añade productos a tu lista y guárdala con un nombre.</p>`) + `</section>`;
+};
 const totalHTML = () => `<div class="total"><span>Total<small>IVA incluido</small></span><strong id="total-v">${eurT(total())}</strong></div>`;
 const qty = k => lista[k]||0;
 const ctl = (k,name) => qty(k)
@@ -124,7 +146,7 @@ function render(){
   const units = keys.reduce((a,k)=>a+lista[k],0);
   count.textContent = inLista ? `${hits.length} ${hits.length===1?"producto":"productos"} · ${units} ${units===1?"unidad":"unidades"}`
     : terms.length ? `${hits.length} de ${ROWS.length} productos` : `${ROWS.length} productos`;
-  if(inLista && !hits.length){ out.innerHTML = `<p class="empty">Tu lista está vacía. En la tarifa, pulsa «+ Añadir» junto a un producto.</p>`; return; }
+  if(inLista && !hits.length){ out.innerHTML = `<p class="empty">Tu lista está vacía. En Bebidas, pulsa «+ Añadir» junto a un producto, o carga una favorita.</p>` + favsHTML(); return; }
   if(!hits.length){ out.innerHTML = `<p class="empty">Nada coincide con «${esc(q.value)}». Prueba con menos letras.</p>`; return; }
   const groups = new Map();
   hits.forEach(r=>{ if(!groups.has(r[0])) groups.set(r[0],[]); groups.get(r[0]).push(r); });
@@ -134,8 +156,8 @@ function render(){
       items.map(r=>`<li><span class="info"><span class="name">${hl(r[1],terms)}</span><span class="code"><span class="lbl">Cód.</span>${hl(r[2],terms)}</span></span><span class="side"><span class="price"><span class="sr">precio </span>${eur(r[3])}</span><span class="ctl" data-name="${esc(r[1])}">${ctl(key(r),r[1])}</span></span></li>`).join("") +
       `</ul></section>`;
   });
-  if(inLista) h += `<div class="actions"><button class="btn" id="copy" type="button">Copiar lista</button><button class="btn" id="empty" type="button">Vaciar lista</button></div>`;
-  out.innerHTML = (inLista ? totalHTML() : "") + h;
+  if(inLista) h += `<div class="actions"><button class="btn wa" id="wa" type="button">Enviar por WhatsApp</button><button class="btn" id="copy" type="button">Copiar lista</button><button class="btn" id="empty" type="button">Vaciar lista</button></div>`;
+  out.innerHTML = (inLista ? totalHTML() : "") + h + (inLista ? favsHTML() : "");
 }
 out.addEventListener("click", e=>{
   const b = e.target.closest("[data-a]");
@@ -152,9 +174,36 @@ out.addEventListener("click", e=>{
     if(view==="lista"){ document.getElementById("total-v").textContent = eurT(total()); const u = Object.values(lista).reduce((x,y)=>x+y,0), p = Object.keys(lista).length; count.textContent = `${p} ${p===1?"producto":"productos"} · ${u} ${u===1?"unidad":"unidades"}`; }
     return;
   }
+  const fv = e.target.closest("[data-f]");
+  if(fv){
+    const a = fv.dataset.f, i = +fv.dataset.i;
+    const note = t => { const n=document.getElementById("fav-note"); if(n){ n.textContent=t; n.scrollIntoView({block:"nearest"}); } };
+    if(a==="save"){
+      const inp = document.getElementById("fav-name"), name = inp.value.trim().slice(0,40);
+      if(!name){ note("Escribe un nombre para guardarla."); inp.focus(); return; }
+      const entry = {name, items:Object.assign({},lista)}, j = favs.findIndex(f=>f.name.toLowerCase()===name.toLowerCase());
+      if(j>-1) favs[j]=entry; else favs.push(entry);
+      saveFavs(); render(); note("«"+name+(j>-1?"» actualizada ✓":"» guardada ✓")); return;
+    }
+    if(a==="del"){
+      if(!fv.dataset.armed){ arm(fv,"Pulsa otra vez para borrar","Borrar"); return; }
+      favs.splice(i,1); saveFavs(); render(); return;
+    }
+    if(a==="load"){
+      if(Object.keys(lista).length && !fv.dataset.armed){ arm(fv,"Pulsa otra vez: reemplaza tu lista","Cargar"); return; }
+      const ok = new Set(ROWS.map(key));
+      lista = {}; Object.keys(favs[i].items).forEach(k=>{ if(ok.has(k) && favs[i].items[k]>0) lista[k]=favs[i].items[k]; });
+      save(); render(); window.scrollTo(0,0); return;
+    }
+  }
+  if(e.target.closest("#wa")){
+    const url = "https://wa.me/?text=" + encodeURIComponent(listText());
+    if(!window.open(url, "_blank", "noopener")) location.href = url;
+    return;
+  }
   const c = e.target.closest("#copy");
   if(c){
-    const txt = ROWS.filter(r=>qty(key(r))).map(r=>`${qty(key(r))} x ${r[2]}`).join(String.fromCharCode(10));
+    const txt = listText();
     (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(()=>{c.textContent="Copiado ✓"}, ()=>{c.textContent="No se pudo copiar"});
     setTimeout(()=>{c.textContent="Copiar lista"},2000);
     return;
@@ -165,6 +214,7 @@ out.addEventListener("click", e=>{
     lista={}; save(); render();
   }
 });
+out.addEventListener("keydown", e=>{ if(e.key==="Enter" && e.target.id==="fav-name"){ e.preventDefault(); document.querySelector('[data-f="save"]').click(); } });
 tabT.addEventListener("click", ()=>{ view="tarifa"; render(); window.scrollTo(0,0); });
 tabL.addEventListener("click", ()=>{ view="lista"; render(); window.scrollTo(0,0); });
 q.addEventListener("input", render);
